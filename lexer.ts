@@ -1,6 +1,7 @@
 export enum TokenType {
     Number,
     Operator,
+    BinaryOperator,
     Identifier,
     Keyword,
     String,
@@ -8,6 +9,18 @@ export enum TokenType {
     Newline,
     ParenLeft,
     ParenRight,
+    BraceLeft,
+    BraceRight,
+    Comma,
+    Semicolon,
+    Colon,
+    Dot,
+    ComparisonOperator,
+    LogicalOperator,
+    Increment,
+    Decrement,
+    AssignmentOperator,
+    Comment,
     Unknown,
 }
 
@@ -70,14 +83,14 @@ export const Tokenize = (input: string): Token[] => {
         if (char === '"' || char === "'") {
             let str = "";
             let quoteType = char;
-            position++; // Remove the opening quote
+            position++;
             column++;
             while (position < length && input[position] !== quoteType) {
                 str += input[position];
                 position++;
                 column++;
             }
-            position++; // Remove the closing quote
+            position++;
             column++;
             tokens.push(getToken(str, TokenType.String, line, column - str.length - 2)); // -2 for the quotes
             continue;
@@ -99,20 +112,174 @@ export const Tokenize = (input: string): Token[] => {
         // Handle operators and punctuation
         switch (char) {
             case '+':
+                if (input[position + 1] === '+') {
+                    tokens.push(getToken('++', TokenType.Increment, line, column));
+                    position += 2;
+                    column += 2;
+                } else if (input[position + 1] === '=') {
+                    tokens.push(getToken('+=', TokenType.AssignmentOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else {
+                    tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
+                    position++;
+                    column++;
+                }
+                break;
             case '-':
+                if (input[position + 1] === '-') {
+                    tokens.push(getToken('--', TokenType.Decrement, line, column));
+                    position += 2;
+                    column += 2;
+                } else if (input[position + 1] === '=') {
+                    tokens.push(getToken('-=', TokenType.AssignmentOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else {
+                    tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
+                    position++;
+                    column++;
+                }
+                break;
             case '*':
+                if (input[position + 1] === '=') {
+                    tokens.push(getToken('*=', TokenType.AssignmentOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else {
+                    tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
+                    position++;
+                    column++;
+                }
+                break;
             case '/':
-                tokens.push(getToken(char, TokenType.Operator, line, column));
+                if (input[position + 1] === '=') {
+                    tokens.push(getToken('/=', TokenType.AssignmentOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else if (input[position + 1] === '/') {
+                    let comment = '';
+                    while (position < length && input[position] !== '\n') {
+                        comment += input[position];
+                        position++;
+                        column++;
+                    }
+                    tokens.push(getToken(comment, TokenType.Comment, line, column - comment.length));
+                } else if (input[position + 1] === '*') {
+                    let comment = '';
+                    position += 2;
+                    column += 2;
+                    while (position < length && !(input[position] === '*' && input[position + 1] === '/')) {
+                        comment += input[position];
+                        if (newLine(input[position])) {
+                            line++;
+                            column = 0;
+                        }
+                        position++;
+                        column++;
+                    }
+                    position += 2;
+                    column += 2;
+                    tokens.push(getToken(comment, TokenType.Comment, line, column - comment.length));
+                } else {
+                    tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
+                    position++;
+                    column++;
+                }
+                break;
+            case '=':
+                if (input[position + 1] === '=') {
+                    tokens.push(getToken('==', TokenType.ComparisonOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else {
+                    tokens.push(getToken(char, TokenType.Operator, line, column));
+                    position++;
+                    column++;
+                }
+                break;
+            case '!':
+                if (input[position + 1] === '=') {
+                    tokens.push(getToken('!=', TokenType.ComparisonOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else {
+                    tokens.push(getToken(char, TokenType.LogicalOperator, line, column));
+                    position++;
+                    column++;
+                }
+                break;
+            case '<':
+                if (input[position + 1] === '=') {
+                    tokens.push(getToken('<=', TokenType.ComparisonOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else {
+                    tokens.push(getToken(char, TokenType.ComparisonOperator, line, column));
+                    position++;
+                    column++;
+                }
+                break;
+            case '>':
+                if (input[position + 1] === '=') {
+                    tokens.push(getToken('>=', TokenType.ComparisonOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else {
+                    tokens.push(getToken(char, TokenType.ComparisonOperator, line, column));
+                    position++;
+                    column++;
+                }
+                break;
+            case '&':
+                if (input[position + 1] === '&') {
+                    tokens.push(getToken('&&', TokenType.LogicalOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else {
+                    tokens.push(getToken(char, TokenType.Unknown, line, column));
+                    position++;
+                    column++;
+                }
+                break;
+            case '|':
+                if (input[position + 1] === '|') {
+                    tokens.push(getToken('||', TokenType.LogicalOperator, line, column));
+                    position += 2;
+                    column += 2;
+                } else {
+                    tokens.push(getToken(char, TokenType.Unknown, line, column));
+                    position++;
+                    column++;
+                }
+                break;
+            case '{':
+                tokens.push(getToken(char, TokenType.BraceLeft, line, column));
                 position++;
                 column++;
                 break;
-            case '(':
-                tokens.push(getToken(char, TokenType.ParenLeft, line, column));
+            case '}':
+                tokens.push(getToken(char, TokenType.BraceRight, line, column));
                 position++;
                 column++;
                 break;
-            case ')':
-                tokens.push(getToken(char, TokenType.ParenRight, line, column));
+            case ',':
+                tokens.push(getToken(char, TokenType.Comma, line, column));
+                position++;
+                column++;
+                break;
+            case ';':
+                tokens.push(getToken(char, TokenType.Semicolon, line, column));
+                position++;
+                column++;
+                break;
+            case ':':
+                tokens.push(getToken(char, TokenType.Colon, line, column));
+                position++;
+                column++;
+                break;
+            case '.':
+                tokens.push(getToken(char, TokenType.Dot, line, column));
                 position++;
                 column++;
                 break;
