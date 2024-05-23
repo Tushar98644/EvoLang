@@ -42,251 +42,260 @@ export const Tokenize = (input: string): Token[] => {
     let line = 1;
     let column = 1;
 
+    const newLine = (char: string) => char === '\n';
     const isLetter = (char: string) => /^[a-zA-Z]$/.test(char);
     const isDigit = (char: string) => /^[0-9]$/.test(char);
     const isWhitespace = (char: string) => /^\s$/.test(char);
-    const newLine = (char: string) => char === '\n';
 
     while (position < length) {
         let char = input[position];
 
-        // Handle newline
-        if (newLine(char)) {
-            tokens.push(getToken(char, TokenType.Newline, line, column));
-            position++;
-            line++;
-            column = 1;
-            continue;
-        }
+        switch (true) {
+            // Handle newline
+            case newLine(char):
+                tokens.push(getToken(char, TokenType.Newline, line, column));
+                position++;
+                line++;
+                column = 1;
+                break;
 
-        // Handle whitespace
-        if (isWhitespace(char)) {
-            tokens.push(getToken(char, TokenType.Whitespace, line, column));
-            position++;
-            column++;
-            continue;
-        }
+            // Handle whitespace
+            case isWhitespace(char):
+                tokens.push(getToken(char, TokenType.Whitespace, line, column));
+                position++;
+                column++;
+                break;
 
-        // Handle numbers
-        if (isDigit(char)) {
-            let start = position;
-            while (isDigit(input[position])) {
-                position++;
-                column++;
-            }
-            const numStr = input.slice(start, position);
-            tokens.push(getToken(numStr, TokenType.Number, line, column - numStr.length));
-            continue;
-        }
+            // Handle numbers
+            case isDigit(char):
+                let start = position;
+                while (position < length && isDigit(input[position])) {
+                    position++;
+                    column++;
+                }
+                const numStr = input.slice(start, position);
+                tokens.push(getToken(numStr, TokenType.Number, line, column - numStr.length));
+                break;
 
-        // Handle string literals
-        if (char === '"' || char === "'") {
-            let str = "";
-            let quoteType = char;
-            position++;
-            column++;
-            while (position < length && input[position] !== quoteType) {
-                str += input[position];
+            // Handle string literals
+            case char === '"' || char === "'":
+                let str = "";
+                let quoteType = char;
                 position++;
                 column++;
-            }
-            position++;
-            column++;
-            tokens.push(getToken(str, TokenType.String, line, column - str.length - 2)); // -2 for the quotes
-            continue;
-        }
+                while (position < length && input[position] !== quoteType) {
+                    str += input[position];
+                    position++;
+                    column++;
+                }
+                position++;
+                column++;
+                tokens.push(getToken(str, TokenType.String, line, column - str.length - 2)); // -2 for the quotes
+                break;
 
-        // Handle identifiers and keywords
-        if (isLetter(char)) {
-            let start = position;
-            while (isLetter(input[position]) || isDigit(input[position])) {
-                position++;
-                column++;
-            }
-            const idStr = input.slice(start, position);
-            const type = (idStr === "let") ? TokenType.Keyword : TokenType.Identifier;
-            tokens.push(getToken(idStr, type, line, column - idStr.length));
-            continue;
-        }
+            // Handle identifiers and keywords
+            case isLetter(char):
+                let idStart = position;
+                while (position < length && (isLetter(input[position]) || isDigit(input[position]))) {
+                    position++;
+                    column++;
+                }
+                const idStr = input.slice(idStart, position);
+                const type = (idStr === "let") ? TokenType.Keyword : TokenType.Identifier;
+                tokens.push(getToken(idStr, type, line, column - idStr.length));
+                break;
 
-        // Handle operators and punctuation
-        switch (char) {
-            case '+':
-                if (input[position + 1] === '+') {
-                    tokens.push(getToken('++', TokenType.Increment, line, column));
-                    position += 2;
-                    column += 2;
-                } else if (input[position + 1] === '=') {
-                    tokens.push(getToken('+=', TokenType.AssignmentOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else {
-                    tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '-':
-                if (input[position + 1] === '-') {
-                    tokens.push(getToken('--', TokenType.Decrement, line, column));
-                    position += 2;
-                    column += 2;
-                } else if (input[position + 1] === '=') {
-                    tokens.push(getToken('-=', TokenType.AssignmentOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else {
-                    tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '*':
-                if (input[position + 1] === '=') {
-                    tokens.push(getToken('*=', TokenType.AssignmentOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else {
-                    tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '/':
-                if (input[position + 1] === '=') {
-                    tokens.push(getToken('/=', TokenType.AssignmentOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else if (input[position + 1] === '/') {
-                    let comment = '';
-                    while (position < length && input[position] !== '\n') {
-                        comment += input[position];
-                        position++;
-                        column++;
-                    }
-                    tokens.push(getToken(comment, TokenType.Comment, line, column - comment.length));
-                } else if (input[position + 1] === '*') {
-                    let comment = '';
-                    position += 2;
-                    column += 2;
-                    while (position < length && !(input[position] === '*' && input[position + 1] === '/')) {
-                        comment += input[position];
-                        if (newLine(input[position])) {
-                            line++;
-                            column = 0;
-                        }
-                        position++;
-                        column++;
-                    }
-                    position += 2;
-                    column += 2;
-                    tokens.push(getToken(comment, TokenType.Comment, line, column - comment.length));
-                } else {
-                    tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '=':
-                if (input[position + 1] === '=') {
-                    tokens.push(getToken('==', TokenType.ComparisonOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else {
-                    tokens.push(getToken(char, TokenType.Operator, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '!':
-                if (input[position + 1] === '=') {
-                    tokens.push(getToken('!=', TokenType.ComparisonOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else {
-                    tokens.push(getToken(char, TokenType.LogicalOperator, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '<':
-                if (input[position + 1] === '=') {
-                    tokens.push(getToken('<=', TokenType.ComparisonOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else {
-                    tokens.push(getToken(char, TokenType.ComparisonOperator, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '>':
-                if (input[position + 1] === '=') {
-                    tokens.push(getToken('>=', TokenType.ComparisonOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else {
-                    tokens.push(getToken(char, TokenType.ComparisonOperator, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '&':
-                if (input[position + 1] === '&') {
-                    tokens.push(getToken('&&', TokenType.LogicalOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else {
-                    tokens.push(getToken(char, TokenType.Unknown, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '|':
-                if (input[position + 1] === '|') {
-                    tokens.push(getToken('||', TokenType.LogicalOperator, line, column));
-                    position += 2;
-                    column += 2;
-                } else {
-                    tokens.push(getToken(char, TokenType.Unknown, line, column));
-                    position++;
-                    column++;
-                }
-                break;
-            case '{':
-                tokens.push(getToken(char, TokenType.BraceLeft, line, column));
-                position++;
-                column++;
-                break;
-            case '}':
-                tokens.push(getToken(char, TokenType.BraceRight, line, column));
-                position++;
-                column++;
-                break;
-            case ',':
-                tokens.push(getToken(char, TokenType.Comma, line, column));
-                position++;
-                column++;
-                break;
-            case ';':
-                tokens.push(getToken(char, TokenType.Semicolon, line, column));
-                position++;
-                column++;
-                break;
-            case ':':
-                tokens.push(getToken(char, TokenType.Colon, line, column));
-                position++;
-                column++;
-                break;
-            case '.':
-                tokens.push(getToken(char, TokenType.Dot, line, column));
-                position++;
-                column++;
-                break;
+            // Handle operators and punctuation
             default:
-                tokens.push(getToken(char, TokenType.Unknown, line, column));
-                position++;
-                column++;
+                switch (char) {
+                    case '+':
+                        if (input[position + 1] === '+') {
+                            tokens.push(getToken('++', TokenType.Increment, line, column));
+                            position += 2;
+                            column += 2;
+                        } else if (input[position + 1] === '=') {
+                            tokens.push(getToken('+=', TokenType.AssignmentOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else {
+                            tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '-':
+                        if (input[position + 1] === '--') {
+                            tokens.push(getToken('--', TokenType.Decrement, line, column));
+                            position += 2;
+                            column += 2;
+                        } else if (input[position + 1] === '=') {
+                            tokens.push(getToken('-=', TokenType.AssignmentOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else {
+                            tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '*':
+                        if (input[position + 1] === '=') {
+                            tokens.push(getToken('*=', TokenType.AssignmentOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else {
+                            tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '/':
+                        if (input[position + 1] === '=') {
+                            tokens.push(getToken('/=', TokenType.AssignmentOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else if (input[position + 1] === '/') {
+                            let comment = '';
+                            while (position < length && input[position] !== '\n') {
+                                comment += input[position];
+                                position++;
+                                column++;
+                            }
+                            tokens.push(getToken(comment, TokenType.Comment, line, column - comment.length));
+                        } else if (input[position + 1] === '*') {
+                            let comment = '';
+                            position += 2;
+                            column += 2;
+                            while (position < length && !(input[position] === '*' && input[position + 1] === '/')) {
+                                comment += input[position];
+                                if (newLine(input[position])) {
+                                    line++;
+                                    column = 0;
+                                }
+                                position++;
+                                column++;
+                            }
+                            position += 2;
+                            column += 2;
+                            tokens.push(getToken(comment, TokenType.Comment, line, column - comment.length));
+                        } else {
+                            tokens.push(getToken(char, TokenType.BinaryOperator, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '=':
+                        if (input[position + 1] === '=') {
+                            tokens.push(getToken('==', TokenType.ComparisonOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else {
+                            tokens.push(getToken(char, TokenType.Operator, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '!':
+                        if (input[position + 1] === '=') {
+                            tokens.push(getToken('!=', TokenType.ComparisonOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else {
+                            tokens.push(getToken(char, TokenType.LogicalOperator, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '<':
+                        if (input[position + 1] === '=') {
+                            tokens.push(getToken('<=', TokenType.ComparisonOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else {
+                            tokens.push(getToken(char, TokenType.ComparisonOperator, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '>':
+                        if (input[position + 1] === '=') {
+                            tokens.push(getToken('>=', TokenType.ComparisonOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else {
+                            tokens.push(getToken(char, TokenType.ComparisonOperator, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '&':
+                        if (input[position + 1] === '&') {
+                            tokens.push(getToken('&&', TokenType.LogicalOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else {
+                            tokens.push(getToken(char, TokenType.Unknown, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '|':
+                        if (input[position + 1] === '||') {
+                            tokens.push(getToken('||', TokenType.LogicalOperator, line, column));
+                            position += 2;
+                            column += 2;
+                        } else {
+                            tokens.push(getToken(char, TokenType.Unknown, line, column));
+                            position++;
+                            column++;
+                        }
+                        break;
+                    case '(':   
+                        tokens.push(getToken(char, TokenType.ParenLeft, line, column));
+                        position++;
+                        column++;
+                        break;
+                    case ')':   
+                        tokens.push(getToken(char, TokenType.ParenRight, line, column));
+                        position++;
+                        column++;
+                        break;
+                    case '{':
+                        tokens.push(getToken(char, TokenType.BraceLeft, line, column));
+                        position++;
+                        column++;
+                        break;
+                    case '}':
+                        tokens.push(getToken(char, TokenType.BraceRight, line, column));
+                        position++;
+                        column++;
+                        break;
+                    case ',':
+                        tokens.push(getToken(char, TokenType.Comma, line, column));
+                        position++;
+                        column++;
+                        break;
+                    case ';':
+                        tokens.push(getToken(char, TokenType.Semicolon, line, column));
+                        position++;
+                        column++;
+                        break;
+                    case ':':
+                        tokens.push(getToken(char, TokenType.Colon, line, column));
+                        position++;
+                        column++;
+                        break;
+                    case '.':
+                        tokens.push(getToken(char, TokenType.Dot, line, column));
+                        position++;
+                        column++;
+                        break;
+                    default:
+                        tokens.push(getToken(char, TokenType.Unknown, line, column));
+                        position++;
+                        column++;
+                        break;
+                }
                 break;
         }
     }
@@ -295,7 +304,7 @@ export const Tokenize = (input: string): Token[] => {
 };
 
 // Example usage
-const sourceCode = `let x = 60 + (hi*tushar) let str = "hello world"`;
+const sourceCode = `let x = 60 + -> <= (hi*tushar) let str = "hello world"`;
 const tokens = Tokenize(sourceCode);
 tokens.forEach(token => {
     console.log(`Token Type: ${TokenType[token.type]}, Value: '${token.value}', Line: ${token.line}, Column: ${token.column}`);
