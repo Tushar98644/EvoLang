@@ -299,7 +299,7 @@ export const Tokenize = (input: string): Token[] => {
                 break;
         }
     }
-
+    
     return tokens;
 };
 
