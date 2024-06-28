@@ -22,6 +22,7 @@ export enum TokenType {
     AssignmentOperator,
     Comment,
     Unknown,
+    EOF
 }
 
 export interface Token {
@@ -298,8 +299,10 @@ export const Tokenize = (input: string): Token[] => {
                 }
                 break;
         }
+
     }
     
+    tokens.push({ value: "", type: TokenType.EOF, line, column });
     return tokens;
 };
 
